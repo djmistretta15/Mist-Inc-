@@ -68,54 +68,38 @@ Mist Inc. is the **operating system** for your arbitrage empire. Instead of buil
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### **For Backbone Development**
 
-- Node.js 18+
-- Docker & Docker Compose
-- PostgreSQL (via Docker)
-- Redis (via Docker)
-
-### 1. Clone & Setup
+Prerequisites: Node.js 18+, Docker & Docker Compose
 
 ```bash
+# 1. Clone & setup
 git clone <your-repo>
 cd Mist-Inc-
-
-# Copy environment template
-cp .env.example .env
-
-# Start infrastructure & run migrations
 ./scripts/dev.sh
-```
 
-### 2. Start Services
-
-**Option A: Docker (easiest)**
-```bash
+# 2. Start everything
 docker-compose up
-```
 
-**Option B: Local development (better for debugging)**
-```bash
-# Terminal 1: Trust Engine
-npm run dev --workspace=@mist/trust-engine
-
-# Terminal 2: Scheduler
-npm run dev --workspace=@mist/scheduler
-
-# Terminal 3: Example GP4U Engine
-npm run dev --workspace=gp4u-engine-example
-```
-
-### 3. Verify
-
-```bash
-# Health check
+# 3. Verify
 curl http://localhost:8080/health
-
-# Get trust score (will return 50.0 default for new users)
-curl http://localhost:8080/api/v1/trust/550e8400-e29b-41d4-a716-446655440000
+curl http://localhost:4000/graphql  # GraphQL API
 ```
+
+### **For Engine Development** (The Easy Way)
+
+```bash
+# Create new engine in 30 seconds
+npx create-mist-engine my-arbitrage-engine
+
+cd my-arbitrage-engine
+npm install
+npm run dev
+```
+
+**That's it!** Your engine is connected to the backbone.
+
+See [INTEGRATION.md](./INTEGRATION.md) for the full guide.
 
 ---
 
@@ -177,6 +161,108 @@ await engine.reportJobCompletion(job, {
 ```
 
 **See `examples/gp4u-engine/` for a complete implementation.**
+
+---
+
+## 🛠️ Developer Experience (NEW)
+
+We've added **everything** to make integration dead-simple:
+
+### **1. CLI Tool** - Scaffold engines in 30 seconds
+
+```bash
+npx create-mist-engine my-engine
+```
+
+Auto-generates:
+- Full TypeScript project
+- Engine template with TODOs
+- Tests with mock backbone
+- README and documentation
+- Docker config
+
+### **2. Mock Backbone** - Test locally without infrastructure
+
+```typescript
+import { MockBackbone } from '@mist/mock-backbone';
+
+const mock = new MockBackbone();
+await mock.start();
+
+// Test your engine against fake backbone
+const engine = new MyEngine({ backboneUrl: 'http://localhost:8081' });
+await engine.initialize({});
+```
+
+No PostgreSQL, Redis, or services needed. Just test your logic.
+
+### **3. GraphQL API** - Query exactly what you need
+
+```graphql
+query {
+  resources(engine: "gp4u", minTrustScore: 70) {
+    id
+    specs
+    pricePerUnit
+    trustScore
+  }
+}
+
+subscription {
+  jobUpdated(jobId: "job-123") {
+    status
+    result
+  }
+}
+```
+
+Real-time subscriptions, no polling, auto-generated types.
+
+**Endpoint**: `http://localhost:4000/graphql`
+
+### **4. Built-in Observability** - Metrics, logs, traces out of the box
+
+```typescript
+import { Observability } from '@mist/observability';
+
+const obs = new Observability('my-engine');
+
+obs.trackJobCompleted(durationSeconds, resourceType);
+obs.info('Job started', { job_id, resource_id });
+
+// Expose metrics
+app.get('/metrics', async (req, res) => {
+  res.send(await obs.getMetrics());
+});
+```
+
+Prometheus metrics + Winston logs + OpenTelemetry traces automatically.
+
+### **5. Testing Harness** - Test engines end-to-end
+
+```bash
+# Test against mock backbone (fast)
+npm run test:mock
+
+# Test against real backbone (staging)
+npm test
+```
+
+### **6. Hot Reload** - Change code, engine restarts automatically
+
+```bash
+npm run dev  # tsx watch mode
+```
+
+---
+
+## 📚 Documentation
+
+- **[INTEGRATION.md](./INTEGRATION.md)** - Complete integration guide (NEW)
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System design deep-dive
+- **[README.md](./README.md)** - This file
+
+**Integration time: < 1 hour** for greenfield engines.
 
 ---
 

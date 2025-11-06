@@ -1,0 +1,23 @@
+{
+  "name": "create-mist-engine",
+  "version": "0.1.0",
+  "description": "CLI tool to scaffold new Mist arbitrage engines",
+  "bin": {
+    "create-mist-engine": "./bin/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublish": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "inquirer": "^9.2.12",
+    "chalk": "^4.1.2",
+    "fs-extra": "^11.2.0"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.7",
+    "@types/fs-extra": "^11.0.4",
+    "typescript": "^5.3.3"
+  }
+}
