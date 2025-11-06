@@ -1,0 +1,333 @@
+type Query {
+  """Get current user"""
+  me: User!
+
+  """Get user by ID"""
+  user(id: ID!): User
+
+  """Get trust score for a user"""
+  trustScore(userId: ID!, engine: String): TrustScore!
+
+  """Get trust score history"""
+  trustHistory(userId: ID!, days: Int = 30): [TrustScore!]!
+
+  """List available resources"""
+  resources(
+    engine: String
+    type: ResourceType
+    region: String
+    minTrustScore: Float
+    maxPrice: Float
+    limit: Int = 50
+  ): [Resource!]!
+
+  """Get resource by ID"""
+  resource(id: ID!): Resource
+
+  """Get resource availability"""
+  resourceAvailability(id: ID!): Availability!
+
+  """List jobs"""
+  jobs(
+    userId: ID
+    engine: String
+    status: JobStatus
+    limit: Int = 50
+  ): [Job!]!
+
+  """Get job by ID"""
+  job(id: ID!): Job
+
+  """Get scheduling policies"""
+  schedulingPolicies(enabled: Boolean): [SchedulingPolicy!]!
+
+  """Get transactions"""
+  transactions(
+    userId: ID
+    status: TransactionStatus
+    limit: Int = 50
+  ): [Transaction!]!
+
+  """Get bundle pricing estimate"""
+  estimateBundle(input: BundleInput!): BundleEstimate!
+}
+
+type Mutation {
+  """Submit a job"""
+  submitJob(input: JobInput!): Job!
+
+  """Cancel a job"""
+  cancelJob(id: ID!): Job!
+
+  """Create a bundle"""
+  createBundle(input: BundleInput!): Bundle!
+
+  """Trigger trust recalculation"""
+  recalculateTrust(userId: ID!, engine: String): TrustScore!
+
+  """Create scheduling policy"""
+  createSchedulingPolicy(input: SchedulingPolicyInput!): SchedulingPolicy!
+
+  """Update scheduling policy"""
+  updateSchedulingPolicy(id: ID!, input: SchedulingPolicyInput!): SchedulingPolicy!
+}
+
+type Subscription {
+  """Subscribe to job status updates"""
+  jobUpdated(jobId: ID!): Job!
+
+  """Subscribe to trust score updates"""
+  trustUpdated(userId: ID!): TrustScore!
+
+  """Subscribe to resource availability changes"""
+  resourceAvailabilityChanged(resourceId: ID): Resource!
+}
+
+# Types
+
+type User {
+  id: ID!
+  email: String!
+  trustScore: Float!
+  tier: UserTier!
+  kycStatus: KYCStatus!
+  wallets: [Wallet!]!
+  devices: [Device!]!
+  metadata: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Wallet {
+  id: ID!
+  userId: ID!
+  type: WalletType!
+  address: String
+  balance: Float!
+  currency: String!
+  createdAt: DateTime!
+}
+
+type Device {
+  id: ID!
+  userId: ID!
+  fingerprint: String!
+  os: String
+  browser: String
+  lastSeen: DateTime!
+  trusted: Boolean!
+}
+
+type TrustScore {
+  userId: ID!
+  engine: String
+  score: Float!
+  components: TrustComponents!
+  computedAt: DateTime!
+}
+
+type TrustComponents {
+  completionRate: Float!
+  userRatings: Float!
+  uptime: Float!
+  transactionVolume: Float!
+  disputeRate: Float!
+  complianceScore: Float!
+  tenureDays: Int!
+}
+
+type Resource {
+  id: ID!
+  engine: String!
+  providerId: ID!
+  type: ResourceType!
+  specs: JSON!
+  region: String!
+  status: ResourceStatus!
+  pricePerUnit: Float!
+  trustScore: Float!
+  availability: Availability!
+  metadata: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Availability {
+  isAvailable: Boolean!
+  nextAvailable: DateTime
+  capacityUsed: Int!
+  capacityTotal: Int!
+}
+
+type Job {
+  id: ID!
+  userId: ID!
+  engine: String!
+  resource: Resource
+  status: JobStatus!
+  constraints: JSON
+  price: Float
+  startedAt: DateTime
+  completedAt: DateTime
+  result: JSON
+  error: String
+  metadata: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type SchedulingPolicy {
+  id: ID!
+  name: String!
+  priority: Int!
+  constraints: [PolicyConstraint!]!
+  objectives: [PolicyObjective!]!
+  enabled: Boolean!
+  metadata: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type PolicyConstraint {
+  type: String!
+  operator: String!
+  value: JSON!
+  required: Boolean!
+}
+
+type PolicyObjective {
+  type: String!
+  weight: Float!
+}
+
+type Transaction {
+  id: ID!
+  userId: ID!
+  jobId: ID
+  amount: Float!
+  currency: String!
+  status: TransactionStatus!
+  escrowUntil: DateTime
+  splits: [PaymentSplit!]!
+  metadata: JSON
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type PaymentSplit {
+  recipientId: ID!
+  recipientType: String!
+  amount: Float!
+  percentage: Float!
+}
+
+type Bundle {
+  id: ID!
+  userId: ID!
+  resources: [BundleResource!]!
+  totalPrice: Float!
+  discountPercentage: Float!
+  finalPrice: Float!
+  expiresAt: DateTime
+  metadata: JSON
+  createdAt: DateTime!
+}
+
+type BundleResource {
+  resourceId: ID!
+  type: ResourceType!
+  quantity: Int!
+  durationHours: Int
+  price: Float!
+}
+
+type BundleEstimate {
+  resources: [BundleResource!]!
+  subtotal: Float!
+  discount: Float!
+  total: Float!
+  savings: Float!
+}
+
+# Input Types
+
+input JobInput {
+  engine: String!
+  resourceId: ID
+  constraints: JSON
+}
+
+input BundleInput {
+  resources: [BundleResourceInput!]!
+}
+
+input BundleResourceInput {
+  resourceId: ID!
+  quantity: Int!
+  durationHours: Int
+}
+
+input SchedulingPolicyInput {
+  name: String!
+  priority: Int!
+  constraints: JSON!
+  objectives: JSON!
+  enabled: Boolean!
+}
+
+# Enums
+
+enum UserTier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum KYCStatus {
+  NONE
+  LITE
+  FULL
+}
+
+enum WalletType {
+  CRYPTO
+  FIAT
+}
+
+enum ResourceType {
+  GPU
+  MEMORY
+  DATA
+  BANDWIDTH
+  STORAGE
+}
+
+enum ResourceStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+  OFFLINE
+}
+
+enum JobStatus {
+  PENDING
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum TransactionStatus {
+  PENDING
+  ESCROWED
+  COMPLETED
+  FAILED
+  REFUNDED
+  DISPUTED
+}
+
+# Scalars
+
+scalar DateTime
+scalar JSON

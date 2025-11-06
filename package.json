@@ -1,0 +1,31 @@
+{
+  "name": "mist-backbone",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "db:migrate": "cd services/shared && npm run migrate",
+    "db:seed": "cd services/shared && npm run seed"
+  },
+  "devDependencies": {
+    "turbo": "^1.11.0",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.5",
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
