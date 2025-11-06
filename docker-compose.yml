@@ -1,0 +1,171 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with TimescaleDB
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    container_name: mist-postgres
+    environment:
+      POSTGRES_DB: mist
+      POSTGRES_USER: mist
+      POSTGRES_PASSWORD: mist_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./services/shared/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mist"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for event bus and caching
+  redis:
+    image: redis:7-alpine
+    container_name: mist-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # NGINX API Gateway
+  nginx:
+    image: nginx:alpine
+    container_name: mist-nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - trust-engine
+      - scheduler
+      - identity
+      - payments
+      - compliance
+      - analytics
+
+  # Core Services
+  trust-engine:
+    build:
+      context: .
+      dockerfile: services/trust-engine/Dockerfile
+    container_name: mist-trust-engine
+    environment:
+      DATABASE_URL: postgresql://mist:mist_dev_password@postgres:5432/mist
+      REDIS_URL: redis://redis:6379
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: services/scheduler/Dockerfile
+    container_name: mist-scheduler
+    environment:
+      DATABASE_URL: postgresql://mist:mist_dev_password@postgres:5432/mist
+      REDIS_URL: redis://redis:6379
+      PORT: 3002
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  identity:
+    build:
+      context: .
+      dockerfile: services/identity/Dockerfile
+    container_name: mist-identity
+    environment:
+      DATABASE_URL: postgresql://mist:mist_dev_password@postgres:5432/mist
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev_jwt_secret_change_in_production
+      PORT: 3003
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  payments:
+    build:
+      context: .
+      dockerfile: services/payments/Dockerfile
+    container_name: mist-payments
+    environment:
+      DATABASE_URL: postgresql://mist:mist_dev_password@postgres:5432/mist
+      REDIS_URL: redis://redis:6379
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      PORT: 3004
+    ports:
+      - "3004:3004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  compliance:
+    build:
+      context: .
+      dockerfile: services/compliance/Dockerfile
+    container_name: mist-compliance
+    environment:
+      DATABASE_URL: postgresql://mist:mist_dev_password@postgres:5432/mist
+      REDIS_URL: redis://redis:6379
+      PORT: 3005
+    ports:
+      - "3005:3005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  analytics:
+    build:
+      context: .
+      dockerfile: services/analytics/Dockerfile
+    container_name: mist-analytics
+    environment:
+      DATABASE_URL: postgresql://mist:mist_dev_password@postgres:5432/mist
+      REDIS_URL: redis://redis:6379
+      PORT: 3006
+    ports:
+      - "3006:3006"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: mist-network
